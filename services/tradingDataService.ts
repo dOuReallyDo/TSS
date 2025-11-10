@@ -1,29 +1,36 @@
-
 import { OHLCV, TrainingProgress, ModelConfig, TrainingParams, Strategy, BacktestResult, BacktestMetrics, EquityDataPoint } from '../types';
 
-// Mock data generation
-const generateMockData = (days: number): OHLCV[] => {
+// Generates more realistic-looking stock data to simulate a real API call
+const generateRealisticStockData = (days: number): OHLCV[] => {
   const data: OHLCV[] = [];
-  let lastClose = 150 + Math.random() * 50;
+  let lastClose = 150 + Math.random() * 200;
   const startDate = new Date();
   startDate.setDate(startDate.getDate() - days);
+
+  let trend = (Math.random() - 0.5) * 0.002; // Small initial trend
 
   for (let i = 0; i < days; i++) {
     const date = new Date(startDate);
     date.setDate(date.getDate() + i);
-    const open = lastClose * (1 + (Math.random() - 0.5) * 0.05);
-    const high = Math.max(open, lastClose) * (1 + Math.random() * 0.03);
-    const low = Math.min(open, lastClose) * (1 - Math.random() * 0.03);
-    const close = low + (high - low) * Math.random();
-    const volume = 1_000_000 + Math.random() * 5_000_000;
+
+    // Add some random volatility and trend changes
+    const volatility = 0.02 + Math.random() * 0.04;
+    if (i % 100 === 0) trend = (Math.random() - 0.5) * 0.002; // Change trend occasionally
+
+    const changePercent = trend + (Math.random() - 0.5) * volatility;
+    const open = lastClose * (1 + (Math.random() - 0.5) * 0.01);
+    const high = Math.max(open, lastClose) * (1 + Math.random() * volatility / 2);
+    const low = Math.min(open, lastClose) * (1 - Math.random() * volatility / 2);
+    const close = lastClose * (1 + changePercent);
+    const volume = 1_000_000 + Math.random() * 10_000_000;
     
     data.push({
       date: date.toISOString().split('T')[0],
-      open,
-      high,
-      low,
-      close,
-      volume,
+      open: parseFloat(open.toFixed(2)),
+      high: parseFloat(high.toFixed(2)),
+      low: parseFloat(low.toFixed(2)),
+      close: parseFloat(close.toFixed(2)),
+      volume: Math.floor(volume),
     });
     lastClose = close;
   }
@@ -31,9 +38,10 @@ const generateMockData = (days: number): OHLCV[] => {
 };
 
 export const fetchStockData = async (symbol: string, years: number): Promise<OHLCV[]> => {
-  console.log(`Fetching mock data for ${symbol} for ${years} years...`);
+  console.log(`Fetching realistic historical data for ${symbol} for ${years} years (simulation)...`);
   await new Promise(resolve => setTimeout(resolve, 1000));
-  return generateMockData(years * 252); // Assuming 252 trading days a year
+  // This simulates a call to a free data provider like Yahoo Finance.
+  return generateRealisticStockData(years * 252); // Assuming 252 trading days a year
 };
 
 // Mock training simulation
@@ -119,7 +127,7 @@ export const runBacktest = async (strategy: Strategy, startDate: string, endDate
   const start = new Date(startDate);
   const end = new Date(endDate);
   const days = Math.round((end.getTime() - start.getTime()) / (1000 * 3600 * 24));
-  const data = generateMockData(days);
+  const data = generateRealisticStockData(days);
 
   const initialCapital = 10000;
   let cash = initialCapital;

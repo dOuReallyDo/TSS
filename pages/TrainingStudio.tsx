@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../components/Card';
 import { ModelConfig, ModelType, TrainingParams, StoppingCriteria, StopCriterion, TrainingProgress } from '../types';
 import { startTraining } from '../services/tradingDataService';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Label } from 'recharts';
-import { Play, Square, Save, Construction, BrainCircuit } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Label, Brush } from 'recharts';
+import { Play, Square, Save, Construction, BrainCircuit, Database, Check, Loader } from 'lucide-react';
 
 type Tab = 'Build' | 'Train' | 'Results';
 
@@ -30,7 +30,23 @@ const TrainingStudio: React.FC = () => {
   const [stopTraining, setStopTraining] = useState<(() => void) | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
+  
+  const [isDataLoading, setIsDataLoading] = useState(false);
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const [loadedDataMessage, setLoadedDataMessage] = useState('');
 
+
+  const handleLoadData = () => {
+    setIsDataLoading(true);
+    setIsDataLoaded(false);
+    setLoadedDataMessage('');
+    setTimeout(() => {
+        const records = 500 + Math.floor(Math.random() * 2000);
+        setLoadedDataMessage(`Dataset loaded: ${records} records found.`);
+        setIsDataLoaded(true);
+        setIsDataLoading(false);
+    }, 1500);
+  };
 
   const handleStartTraining = () => {
     setIsTraining(true);
@@ -118,7 +134,30 @@ const TrainingStudio: React.FC = () => {
   );
 
   const renderTrainTab = () => (
-    <Card title="2. Train Model">
+    <div className="space-y-6">
+      <Card title="2. Load Dataset">
+        <div className="flex flex-col sm:flex-row gap-4 items-end">
+            <div className="flex-1">
+                 <label className="block text-sm font-medium text-gray-300">Select Dataset</label>
+                 <select className="mt-1 block w-full bg-gray-700 border-gray-600 rounded-md p-2 text-white">
+                    <option>AAPL_5Y_data.csv</option>
+                    <option>MSFT_10Y_data.csv</option>
+                    <option>NASDAQ_100_1Y_data.parquet</option>
+                 </select>
+            </div>
+            <button 
+                onClick={handleLoadData}
+                disabled={isDataLoading}
+                className="w-full sm:w-auto flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-indigo-400 disabled:cursor-not-allowed"
+            >
+                {isDataLoading ? <Loader className="animate-spin -ml-1 mr-2 h-5 w-5" /> : <Database className="-ml-1 mr-2 h-5 w-5" />}
+                {isDataLoading ? 'Loading...' : 'Load & Preprocess'}
+            </button>
+        </div>
+        {isDataLoaded && <p className="mt-4 text-green-400 flex items-center"><Check className="mr-2"/>{loadedDataMessage}</p>}
+      </Card>
+
+      <Card title="3. Train Model">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
          <div>
           <label className="block text-sm font-medium text-gray-300">Batch Size</label>
@@ -146,7 +185,7 @@ const TrainingStudio: React.FC = () => {
       </div>
       
       <div className="flex gap-4">
-        <button onClick={handleStartTraining} disabled={isTraining} className="w-full sm:w-auto px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md text-white flex items-center justify-center disabled:bg-green-400">
+        <button onClick={handleStartTraining} disabled={isTraining || !isDataLoaded} className="w-full sm:w-auto px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md text-white flex items-center justify-center disabled:bg-gray-500 disabled:cursor-not-allowed">
             <Play className="mr-2"/> Start Training
         </button>
         <button onClick={handleStopTraining} disabled={!isTraining} className="w-full sm:w-auto px-4 py-2 bg-red-600 hover:bg-red-700 rounded-md text-white flex items-center justify-center disabled:bg-red-400">
@@ -168,13 +207,14 @@ const TrainingStudio: React.FC = () => {
           </div>
         </div>
       )}
-    </Card>
+      </Card>
+    </div>
   );
   
    const renderResultsTab = () => {
     if (trainingHistory.length === 0) {
       return (
-        <Card title="3. Training Results">
+        <Card title="4. Training Results">
           <p className="text-gray-400">No training results yet. Build and train a model first.</p>
         </Card>
       );
@@ -191,7 +231,7 @@ const TrainingStudio: React.FC = () => {
     }));
     
     return (
-        <Card title="3. Training Results & Analysis">
+        <Card title="4. Training Results & Analysis">
             <div className="space-y-8">
                 {/* Metrics Summary */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
@@ -216,6 +256,7 @@ const TrainingStudio: React.FC = () => {
                         <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: '20px' }}/>
                         <Line type="monotone" dataKey="loss" stroke="#8884d8" dot={false} name="Training Loss" />
                         <Line type="monotone" dataKey="valLoss" stroke="#82ca9d" dot={false} name="Validation Loss" />
+                        <Brush dataKey="epoch" height={30} stroke="#6366F1" fill="#2D3748" />
                       </LineChart>
                     </ResponsiveContainer>
                 </div>
