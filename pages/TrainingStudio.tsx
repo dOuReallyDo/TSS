@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../components/Card';
 import { ModelConfig, ModelType, TrainingParams, StoppingCriteria, StopCriterion, TrainingProgress } from '../types';
 import { startTraining } from '../services/tradingDataService';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Label } from 'recharts';
 import { Play, Square, Save, Construction, BrainCircuit } from 'lucide-react';
 
 type Tab = 'Build' | 'Train' | 'Results';
@@ -171,37 +171,88 @@ const TrainingStudio: React.FC = () => {
     </Card>
   );
   
-   const renderResultsTab = () => (
-    <Card title="3. Training Results">
-      {trainingHistory.length > 0 ? (
-        <>
-            <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={trainingHistory}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" />
-                <XAxis dataKey="epoch" stroke="#A0AEC0" name="Epoch"/>
-                <YAxis stroke="#A0AEC0" />
-                <Tooltip contentStyle={{ backgroundColor: '#1A202C', border: '1px solid #4A5568' }} />
-                <Legend />
-                <Line type="monotone" dataKey="loss" stroke="#8884d8" dot={false} name="Training Loss" />
-                <Line type="monotone" dataKey="valLoss" stroke="#82ca9d" dot={false} name="Validation Loss" />
-              </LineChart>
-            </ResponsiveContainer>
-            <div className="mt-6 flex items-center gap-4">
-                <button 
-                    onClick={handleSaveModel} 
-                    disabled={isSaving}
-                    className="w-full sm:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-md text-white flex items-center justify-center disabled:bg-indigo-400 disabled:cursor-not-allowed">
-                    <Save className="mr-2"/>
-                    {isSaving ? 'Saving...' : 'Save Model'}
-                </button>
-                {saveStatus && <p className="text-sm text-green-400 animate-pulse">{saveStatus}</p>}
+   const renderResultsTab = () => {
+    if (trainingHistory.length === 0) {
+      return (
+        <Card title="3. Training Results">
+          <p className="text-gray-400">No training results yet. Build and train a model first.</p>
+        </Card>
+      );
+    }
+
+    const lastEpoch = trainingHistory[trainingHistory.length - 1];
+    const finalLoss = lastEpoch.loss.toFixed(4);
+    const finalValLoss = lastEpoch.valLoss.toFixed(4);
+    const lossGap = (lastEpoch.valLoss - lastEpoch.loss).toFixed(4);
+    
+    const gapData = trainingHistory.map(h => ({
+        epoch: h.epoch,
+        gap: h.valLoss - h.loss
+    }));
+    
+    return (
+        <Card title="3. Training Results & Analysis">
+            <div className="space-y-8">
+                {/* Metrics Summary */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <Card className="!p-4 bg-gray-900"><p className="text-sm text-gray-400">Final Training Loss</p><p className="text-2xl font-bold">{finalLoss}</p></Card>
+                    <Card className="!p-4 bg-gray-900"><p className="text-sm text-gray-400">Final Validation Loss</p><p className="text-2xl font-bold">{finalValLoss}</p></Card>
+                    <Card className="!p-4 bg-gray-900"><p className="text-sm text-gray-400">Train-Val Loss Gap</p><p className="text-2xl font-bold">{lossGap}</p></Card>
+                </div>
+                
+                {/* Main Loss Chart */}
+                <div>
+                    <h3 className="text-lg font-semibold text-gray-300 mb-4">Loss vs. Validation Loss per Epoch</h3>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={trainingHistory} margin={{ top: 5, right: 20, left: 20, bottom: 20 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" />
+                        <XAxis dataKey="epoch" stroke="#A0AEC0" name="Epoch">
+                           <Label value="Epoch" offset={-15} position="insideBottom" fill="#A0AEC0" />
+                        </XAxis>
+                        <YAxis stroke="#A0AEC0" domain={[0, 'auto']}>
+                           <Label value="Loss" angle={-90} position="insideLeft" fill="#A0AEC0" style={{ textAnchor: 'middle' }} />
+                        </YAxis>
+                        <Tooltip contentStyle={{ backgroundColor: '#1A202C', border: '1px solid #4A5568' }} />
+                        <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: '20px' }}/>
+                        <Line type="monotone" dataKey="loss" stroke="#8884d8" dot={false} name="Training Loss" />
+                        <Line type="monotone" dataKey="valLoss" stroke="#82ca9d" dot={false} name="Validation Loss" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                </div>
+
+                {/* Gap Chart */}
+                <div>
+                    <h3 className="text-lg font-semibold text-gray-300 mb-4">Training-Validation Loss Gap</h3>
+                     <ResponsiveContainer width="100%" height={200}>
+                        <LineChart data={gapData} margin={{ top: 5, right: 20, left: 20, bottom: 20 }}>
+                           <CartesianGrid strokeDasharray="3 3" stroke="#4A5568" />
+                           <XAxis dataKey="epoch" stroke="#A0AEC0" name="Epoch">
+                              <Label value="Epoch" offset={-15} position="insideBottom" fill="#A0AEC0" />
+                           </XAxis>
+                           <YAxis stroke="#A0AEC0" domain={['auto', 'auto']}>
+                              <Label value="Gap" angle={-90} position="insideLeft" fill="#A0AEC0" style={{ textAnchor: 'middle' }} />
+                           </YAxis>
+                           <Tooltip contentStyle={{ backgroundColor: '#1A202C', border: '1px solid #4A5568' }} />
+                           <Legend verticalAlign="top" wrapperStyle={{ paddingBottom: '20px' }}/>
+                           <Line type="monotone" dataKey="gap" stroke="#f6ad55" dot={false} name="Loss Gap (Val - Train)" />
+                        </LineChart>
+                     </ResponsiveContainer>
+                </div>
+                
+                <div className="pt-6 border-t border-gray-700 flex items-center gap-4">
+                    <button 
+                        onClick={handleSaveModel} 
+                        disabled={isSaving}
+                        className="w-full sm:w-auto px-4 py-2 bg-indigo-600 hover:bg-indigo-700 rounded-md text-white flex items-center justify-center disabled:bg-indigo-400 disabled:cursor-not-allowed">
+                        <Save className="mr-2"/>
+                        {isSaving ? 'Saving...' : 'Save Model'}
+                    </button>
+                    {saveStatus && <p className="text-sm text-green-400 animate-pulse">{saveStatus}</p>}
+                </div>
             </div>
-        </>
-      ) : (
-        <p className="text-gray-400">No training results yet. Build and train a model first.</p>
-      )}
-    </Card>
-  );
+        </Card>
+    );
+  };
 
 
   return (

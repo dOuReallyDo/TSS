@@ -62,3 +62,22 @@ export interface StrategyDetails {
     sellSignals: string[];
     idealFor: string;
 }
+
+// Backtesting Types
+export interface BacktestMetrics {
+  totalReturn: number;
+  sharpeRatio: number;
+  maxDrawdown: number;
+  winRate: number;
+}
+
+export interface EquityDataPoint {
+  date: string;
+  portfolioValue: number;
+  buyAndHoldValue: number;
+}
+
+export interface BacktestResult {
+  metrics: BacktestMetrics;
+  equityCurve: EquityDataPoint[];
+}

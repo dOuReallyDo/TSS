@@ -4,14 +4,15 @@ import { STRATEGY_DETAILS } from '../constants';
 
 const API_KEY = process.env.API_KEY;
 
-if (!API_KEY) {
+// FIX: Conditionally initialize GoogleGenAI to prevent errors when API_KEY is missing.
+const ai = API_KEY ? new GoogleGenAI({ apiKey: API_KEY }) : null;
+
+if (!ai) {
   console.warn("Gemini API key not found. The Strategy Assistant will not work.");
 }
 
-const ai = new GoogleGenAI({ apiKey: API_KEY });
-
 export const getStrategyExplanation = async (userPrompt: string, strategyContext: string): Promise<string> => {
-  if (!API_KEY) {
+  if (!ai) {
     return "The Gemini API key is not configured. Please set the API_KEY environment variable to use the Strategy Assistant.";
   }
   try {

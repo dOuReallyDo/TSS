@@ -1,5 +1,5 @@
 
-import { OHLCV, TrainingProgress, ModelConfig, TrainingParams } from '../types';
+import { OHLCV, TrainingProgress, ModelConfig, TrainingParams, Strategy, BacktestResult, BacktestMetrics, EquityDataPoint } from '../types';
 
 // Mock data generation
 const generateMockData = (days: number): OHLCV[] => {
@@ -108,4 +108,101 @@ export const generatePredictions = async (model: string, data: OHLCV[], days: nu
     lastClose = close;
   }
   return predictions;
+};
+
+
+// Mock backtesting simulation
+export const runBacktest = async (strategy: Strategy, startDate: string, endDate: string): Promise<BacktestResult> => {
+  console.log(`Running backtest for ${strategy} from ${startDate} to ${endDate}`);
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const days = Math.round((end.getTime() - start.getTime()) / (1000 * 3600 * 24));
+  const data = generateMockData(days);
+
+  const initialCapital = 10000;
+  let cash = initialCapital;
+  let shares = 0;
+  let portfolioValue = initialCapital;
+  const equityCurve: EquityDataPoint[] = [];
+  let peakValue = initialCapital;
+  let maxDrawdown = 0;
+  
+  const trades = [];
+  let wins = 0;
+  let losses = 0;
+  
+  const firstPrice = data[0]?.close || initialCapital;
+
+  for (let i = 1; i < data.length; i++) {
+    const today = data[i];
+    const yesterday = data[i-1];
+    portfolioValue = cash + shares * today.close;
+
+    // Simplified strategy logic
+    let signal: 'BUY' | 'SELL' | 'HOLD' = 'HOLD';
+    const priceChange = (today.close - yesterday.close) / yesterday.close;
+
+    switch(strategy) {
+        case Strategy.ACKMAN: // Momentum
+            if (priceChange > 0.02 && cash > 0) signal = 'BUY';
+            else if (priceChange < -0.015 && shares > 0) signal = 'SELL';
+            break;
+        case Strategy.MARKS: // Contrarian
+            if (priceChange < -0.03 && cash > 0) signal = 'BUY';
+            else if (priceChange > 0.03 && shares > 0) signal = 'SELL';
+            break;
+        case Strategy.BUFFETT: // Value (mocked as buy-and-hold with dip buying)
+            if (i % 50 === 0 && cash > 0) signal = 'BUY'; // Buy periodically
+            break;
+        case Strategy.NEURAL: // Neural (random)
+            const rand = Math.random();
+            if (rand < 0.1 && cash > 0) signal = 'BUY';
+            else if (rand > 0.9 && shares > 0) signal = 'SELL';
+            break;
+    }
+
+    if (signal === 'BUY') {
+      const sharesToBuy = (cash * 0.5) / today.close; // Use 50% of cash
+      shares += sharesToBuy;
+      cash -= sharesToBuy * today.close;
+      trades.push({ type: 'BUY', price: today.close, shares: sharesToBuy });
+    } else if (signal === 'SELL') {
+      const sharesToSell = shares * 0.5; // Sell 50% of shares
+      cash += sharesToSell * today.close;
+      shares -= sharesToSell;
+      const lastBuy = trades.filter(t => t.type === 'BUY').pop();
+      if (lastBuy) {
+          if (today.close > lastBuy.price) wins++;
+          else losses++;
+      }
+    }
+    
+    // Update equity curve and drawdown
+    portfolioValue = cash + shares * today.close;
+    peakValue = Math.max(peakValue, portfolioValue);
+    const drawdown = (peakValue - portfolioValue) / peakValue;
+    maxDrawdown = Math.max(maxDrawdown, drawdown);
+    
+    const buyAndHoldValue = initialCapital / firstPrice * today.close;
+
+    equityCurve.push({
+      date: today.date,
+      portfolioValue: parseFloat(portfolioValue.toFixed(2)),
+      buyAndHoldValue: parseFloat(buyAndHoldValue.toFixed(2)),
+    });
+  }
+
+  const finalReturn = (portfolioValue - initialCapital) / initialCapital;
+  const totalTrades = wins + losses;
+
+  const metrics: BacktestMetrics = {
+    totalReturn: finalReturn,
+    sharpeRatio: Math.random() * 1.5 + 0.2, // Mock Sharpe
+    maxDrawdown: maxDrawdown,
+    winRate: totalTrades > 0 ? wins / totalTrades : 0,
+  };
+
+  return { metrics, equityCurve };
 };
