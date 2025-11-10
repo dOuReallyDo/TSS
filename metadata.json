@@ -1,0 +1,5 @@
+{
+  "name": "TSS Trading ML System",
+  "description": "A web interface for the TSS Machine Learning Trading System, allowing users to analyze data, train models, and generate stock predictions based on various investment philosophies.",
+  "requestFramePermissions": []
+}
